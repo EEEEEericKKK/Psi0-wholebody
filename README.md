@@ -142,7 +142,7 @@ vim scripts/data/task_description_dict.json
 
 Run conversion script
 ```
-python scripts/data/raw_to_lerobot_v2.py \
+python scripts/data/raw_to_lerobot.py \
   --data-root=/hfm/data/real_teleop_g1/g1_real_raw \
   --work-dir=/hfm/data/real \
   --repo-id=psi0-real-g1 \
@@ -485,7 +485,7 @@ GIT_LFS_SKIP_SMUDGE=1 uv ...
 ## Citation
 
 ```
-@article{wei2026psi0openfoundationmodel,
+@misc{wei2026psi0,
   title={$\Psi_0$: An Open Foundation Model Towards Universal Humanoid Loco-Manipulation}, 
   author={Songlin Wei and Hongyi Jing and Boqian Li and Zhenyu Zhao and Jiageng Mao and Zhenhao Ni and Sicheng He and Jie Liu and Xiawei Liu and Kaidi Kang and Sheng Zang and Weiduo Yuan and Marco Pavone and Di Huang and Yue Wang},
   year={2026},
