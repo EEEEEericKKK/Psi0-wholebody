@@ -4,6 +4,9 @@ set -e
 
 source .venv-psi/bin/activate
 
+module load cuda/12.6
+export CUDA_HOME=/modules/opt/linux-ubuntu24.04-x86_64/nvhpc/Linux_x86_64/24.9/cuda/12.6
+
 export OMP_NUM_THREADS=8
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1}
 
@@ -19,7 +22,7 @@ model.action-tokenizer:fast \
 --train.data_parallel=deepspeed \
 --train.deepspeed_config=scripts/deepspeed/zero3.json \
 --train.mixed_precision=bf16 \
---train.train_batch_size=16 \
+--train.train_batch_size=4 \
 --train.resume_from_checkpoint=latest \
 --train.max_checkpoints_to_keep=5 \
 --train.gradient_accumulation_steps=1 \
@@ -27,7 +30,7 @@ model.action-tokenizer:fast \
 --train.max_training_steps=1000000 \
 --train.warmup_ratio=None \
 --train.warmup_steps=0 \
---train.checkpointing_steps=100 \
+--train.checkpointing_steps=500 \
 --train.validation_steps=0 \
 --train.max_grad_norm=1.0 \
 --train.lr_scheduler_type=constant \
@@ -41,7 +44,7 @@ model.action-tokenizer:fast \
 --data.transform.field.stat-action-key=egodex \
 --data.transform.field.stat-path=assets/stats/egodex_stat_all.json \
 --data.transform.model.resize.size 270 480 \
---data.root-dir=/hfm/data/egodex \
+--data.root-dir=/scratch/workspace/sunlichen_umass_edu-simple/wholebodyVLA/data/EgoDex \
 --data.use-delta-actions \
 --data.transform.model.no-img-aug \
 --model.action_tokenizer.bins=2048 \
@@ -50,7 +53,8 @@ model.action-tokenizer:fast \
 --model.tune-mm-vision \
 --model.tune-mm-mlp \
 --model.mm_projector_lr=1e-5 \
---model.vision_tower_lr=1e-5
+--model.vision_tower_lr=1e-5 \
+--train.lora
 "
 
 torchrun --nproc_per_node=$NPROC_PER_NODE --master_port=29500 scripts/train.py \
