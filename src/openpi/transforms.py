@@ -146,7 +146,9 @@ class Normalize(DataTransformFn):
         assert stats.q99 is not None
         q01, q99 = stats.q01[..., : x.shape[-1]], stats.q99[..., : x.shape[-1]]
 
-        ill_mask = (q99 - q01) == 0
+        # ill_mask = (q99 - q01) == 0
+        # ill_mask = np.abs(q99 - q01) < 1e-4
+        ill_mask = np.abs(q99 - q01) < 1e-4 * (np.abs(q99) + np.abs(q01) + 1e-8)
         q99[ill_mask] = 1.0  # prevent division by zero
 
         s = np.where(
@@ -154,12 +156,12 @@ class Normalize(DataTransformFn):
             (x - q01) / (q99 - q01 + 1e-6) * 2 - 1
         )
         
-        if (np.abs(s) > 10.0).any():
-            print("Warning: values outside quantile range during normalization.")
-            np.save("ab_x.npy", x)
-            np.save("ab_q01.npy", q01)
-            np.save("ab_q99.npy", q99)
-            exit(0)
+        # if (np.abs(s) > 10.0).any():
+        #     print("Error: values outside quantile range during normalization.")
+            # np.save("ab_x.npy", x)
+            # np.save("ab_q01.npy", q01)
+            # np.save("ab_q99.npy", q99)
+            # exit(0)
 
         s = np.clip(s, -1, 1).astype(np.float32)
         # s =  (x - q01) / (q99 - q01 + 1e-6) * 2.0 - 1.0

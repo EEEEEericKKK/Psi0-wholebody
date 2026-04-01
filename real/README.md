@@ -136,20 +136,21 @@ python realsense_server.py
 
 1. Connect your host computer to G1. Then, set up your local IP address to 192.168.123.123 with netmask 255.255.255.0 on G1's network interface.
 2. Connect both your computer and AVP to the same local router wifi in which you set up your cert with.
-3. Open robot and set to sports mode (using remote control by pressing L1 + A, then L1 + UP, and lastly R1 + X when the G1 is gently touching the ground).
-4. On G1 PC: start the image server as above.
-5. On host computer: run
+3. Open robot and set to development mode using remote control by pressing L2 + B, then L2 + R2 (For some robots with lower software versions might need to press L1 + A and the L2 + R2).
+4. Hang the robot so that G1 is gently touching the ground.
+5. On G1 PC: start the image server as above.
+6. On host computer: run
 
 ```bash
 export CYCLONEDDS_URI="<CycloneDDS><Domain><General><NetworkInterfaceAddress>192.168.123.123</NetworkInterfaceAddress></General></Domain></CycloneDDS>"
 ```
 
-6. On host computer: run `python main.py --robot g1` under the `teleop/` directory and wait until the robot is standing in ready state. The terminal should signal both "master" and "worker" processes are waiting for starting signal.
-7. On AVP, connect to robot using https://<host_ip_address_on_your_local_router>:8012/?ws=wss://<host_ip_address_on_your_local_router>:8012. Then, press `Enter VR` and then `Allow` to enter the web interface for teleoperating the G1.
-8. Back on host computer, enter `s` to start recording an episode.
-9. Type `q` and enter if the episode is successful, otherwise `d` and enter to discard the last session.
-10. Repeat by pressing `s` to start recording the next episode. Record 40 episodes for each task.
-11. Type `exit` to shut down the program.
+7. On host computer: run `python main.py --robot g1` under the `teleop/` directory and wait until the robot is standing in ready state. The terminal should signal both "master" and "worker" processes are waiting for starting signal.
+8. On AVP, connect to robot using https://<host_ip_address_on_your_local_router>:8012/?ws=wss://<host_ip_address_on_your_local_router>:8012. Then, press `Enter VR` and then `Allow` to enter the web interface for teleoperating the G1.
+9. Back on host computer, enter `s` to start recording an episode.
+10. Type `q` and enter if the episode is successful, otherwise `d` and enter to discard the last session.
+11. Repeat by pressing `s` to start recording the next episode. Record 40 episodes for each task.
+12. Type `exit` to shut down the program.
 
 # Acknowledgement
 

@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from robot_control.dex_retargeting.retargeting_config import RetargetingConfig
+from teleop.robot_control.dex_retargeting.retargeting_config import RetargetingConfig
 
-from constants_vuer import tip_indices
-from robot_control.hand_retargeting import HandRetargeting, HandType
+from teleop.constants_vuer import tip_indices
+from teleop.robot_control.hand_retargeting import HandRetargeting, HandType
 from TeleVision import OpenTeleVision
 
 import threading
@@ -25,7 +25,7 @@ sys.path.append(parent_dir)
 ########################
 # TELEOPERATOR_HEIGHT = 1.73
 
-from constants_vuer import (
+from teleop.constants_vuer import (
     T_robot_openxr,
     T_to_unitree_hand,
     grd_yup2grd_zup,

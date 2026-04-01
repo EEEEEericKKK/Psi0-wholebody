@@ -326,7 +326,7 @@ if __name__ == "__main__":
     # Print and log important environment variables
     env_vars_to_track = [
         "OMP_NUM_THREADS", "HF_HOME", "TORCH_HOME", "HF_TOKEN", "HF_LEROBOT_HOME",
-        "WE_HOME", "DATA_HOME", "UV_CACHE_DIR", "WANDB_API_KEY",
+        "DATA_HOME", "UV_CACHE_DIR", "WANDB_API_KEY",
         "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "CUDA_VISIBLE_DEVICES",
         "WORLD_SIZE", "LOCAL_WORLD_SIZE", "RANK", "LOCAL_RANK", "MASTER_ADDR", "MASTER_PORT"
     ]

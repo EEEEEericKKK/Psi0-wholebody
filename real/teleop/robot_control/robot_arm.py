@@ -12,13 +12,13 @@ from unitree_sdk2py.idl.unitree_go.msg.dds_._SportModeState_ import SportModeSta
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_
 from unitree_sdk2py.utils.crc import CRC
 
-from robot_control.robot_arm_joints import (
+from teleop.robot_control.robot_arm_joints import (
     G1_29_JointArmIndex,
     G1_29_JointIndex,
     H1_2_JointArmIndex,
     H1_2_JointIndex,
 )
-from utils.logger import logger
+from teleop.utils.logger import logger
 
 kTopicLowCommand = "rt/arm_sdk"
 # kTopicLowCommand = "rt/lowcmd"

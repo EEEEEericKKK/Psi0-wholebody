@@ -11,7 +11,7 @@ from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
 import torch
 
-from robot_control.multi_target_ik import PinkIKSolver
+from teleop.robot_control.multi_target_ik import PinkIKSolver
 
 parent2_dir = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 import zmq
 
-from utils.logger import logger
+from teleop.utils.logger import logger
 from vr import VuerTeleop
 from writers import AsyncImageWriter, AsyncWriter
 
@@ -23,7 +23,7 @@ from writers import AsyncImageWriter, AsyncWriter
 FREQ = 30
 DELAY = 1 / FREQ
 
-from constants import *
+from teleop.constants import *
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)

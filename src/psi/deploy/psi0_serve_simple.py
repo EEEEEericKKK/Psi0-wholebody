@@ -64,8 +64,8 @@ class Server:
         num_params = sum(p.numel() for p in self.model.parameters())
         overwatch.info(f"Parameters (in millions): {num_params*1e-6:.3f} Total", ctx_level=1)
 
-        self.previous_rpy = np.array([0.0, 0.0, 0.0], dtype=np.float32) # FIXME 
-        self.previous_height = np.array([0.75], dtype=np.float32)
+        # self.previous_rpy = np.array([0.0, 0.0, 0.0], dtype=np.float32) # FIXME 
+        # self.previous_height = np.array([0.74], dtype=np.float32)
 
         self.Da = launch_config.model.action_dim # type:ignore
         self.Tp = launch_config.model.action_chunk_size # type:ignore

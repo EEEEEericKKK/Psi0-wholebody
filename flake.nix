@@ -4,16 +4,11 @@
   inputs = {
     self.submodules = true;
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    simple = {
-      url = "path:./third_party/SIMPLE";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = {
     self,
     nixpkgs,
-    simple,
   }:
     let
       system = "x86_64-linux";
@@ -30,7 +25,6 @@
       };
       psiBaseRuntime = import ./nix/runtime-base.nix { inherit pkgs; };
       hostGpuRuntime = import ./nix/runtime-host-gpu.nix { inherit pkgs; };
-      simpleBaseRuntime = simple.lib.${system}.baseRuntime;
 
       commonPackages = [
         pkgs.bashInteractive
@@ -88,19 +82,8 @@
     in {
       devShells.${system} = {
         default = runtimeLib.mkRuntimeShell {
-          name = "psi+simple";
-          runtimes = [ psiBaseRuntime simpleBaseRuntime hostGpuRuntime ];
-          extraPackages = commonPackages;
-          extraShellHook = ''
-            ${commonShellHook}
-            echo "SIMPLE runtime composed into root shell"
-          '';
-          stdenv = pkgs.gcc13Stdenv;
-        };
-
-        integrated = runtimeLib.mkRuntimeShell {
-          name = "psi+simple";
-          runtimes = [ psiBaseRuntime simpleBaseRuntime hostGpuRuntime ];
+          name = "psi";
+          runtimes = [ psiBaseRuntime hostGpuRuntime ];
           extraPackages = commonPackages;
           extraShellHook = ''
             ${commonShellHook}
@@ -117,13 +100,6 @@
           stdenv = pkgs.gcc13Stdenv;
         };
 
-        simple = runtimeLib.mkRuntimeShell {
-          name = "simple";
-          runtimes = [ simpleBaseRuntime hostGpuRuntime ];
-          extraPackages = commonPackages;
-          extraShellHook = commonShellHook;
-          stdenv = pkgs.gcc13Stdenv;
-        };
       };
     };
 }

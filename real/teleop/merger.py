@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-from utils.logger import logger
+from teleop.utils.logger import logger
 
 FREQ = 30
 DELAY = 1 / FREQ

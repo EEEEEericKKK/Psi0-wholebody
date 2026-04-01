@@ -6,10 +6,10 @@ from multiprocessing import Array, Lock, shared_memory
 
 import numpy as np
 
-from robot_control.robot_arm import G1_29_ArmController, H1_2_ArmController
-from robot_control.robot_arm_ik import G1_29_ArmIK, H1_2_ArmIK
-from robot_control.robot_hand_unitree import Dex3_1_Controller
-from robot_control.compute_tau import GetTauer
+from teleop.robot_control.robot_arm import G1_29_ArmController, H1_2_ArmController
+from teleop.robot_control.robot_arm_ik import G1_29_ArmIK, H1_2_ArmIK
+from teleop.robot_control.robot_hand_unitree import Dex3_1_Controller
+from teleop.robot_control.compute_tau import GetTauer
 from master_whole_body import RobotTaskmaster
 from multiprocessing import Array, Event, Lock, shared_memory, Manager
 import threading

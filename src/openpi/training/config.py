@@ -977,7 +977,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Hold_lunch_bag_with_both_hands_and_squat_to_put_on_the_coffee_table"},
     ),
     TrainConfig(
@@ -1004,7 +1004,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Pick_bottle_and_turn_and_pour_into_cup"},
     ),
     TrainConfig(
@@ -1035,7 +1035,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Pick_toys_into_box_and_lift_and_turn_and_put_on_the_chair_new_target_yaw"},
     ),
     TrainConfig(
@@ -1063,7 +1063,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Pull_the_tray_out_of_chips_can_and_throw_the_can_into_trash_bin"},
     ),
     TrainConfig(
@@ -1090,7 +1090,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Push_cart_grasp_and_place_grapes_on_plate"},
     ),
     TrainConfig(
@@ -1117,7 +1117,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Put_dumpling_into_blanket_and_turn_around_and_pass_to_human"},
     ),
     TrainConfig(
@@ -1144,7 +1144,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Remove_the_cap_turn_on_the_faucet_and_fill_the_bottle_with_water"},
     ),
     TrainConfig(
@@ -1171,7 +1171,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Rotate_to_pour_ham_into_plate_and_push_the_cart_forward"},
     ),
     TrainConfig(
@@ -1198,7 +1198,7 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "Spray_the_bowl_and_wipe_it_and_stack_it_up"},
     ),
     ### experiments on SIMPLE tasks ####
@@ -1213,7 +1213,7 @@ _CONFIGS = [
             max_token_len=250,
         ),
         data=LeRobotHFMDataConfig(
-            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyBendPick-v0-psi0",
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyBendPick-v1",
             base_config=DataConfig(prompt_from_task=True),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
@@ -1225,8 +1225,35 @@ _CONFIGS = [
             decay_steps=40_000,
             decay_lr=1e-8,
         ),
-        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/pi05_droid",
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
         policy_metadata={"dataset": "G1WholebodyBendPick-v0-psi0"},
+        checkpoint_base_dir=f".runs/openpi-05"
+    ),
+    TrainConfig(
+        name="simple_bend_pick_v1",
+        project_name="psi",
+        num_workers=8,
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=36,
+            action_horizon=30,
+            max_token_len=250,
+        ),
+        data=LeRobotHFMDataConfig(
+            repo_id=f"{os.environ['PSI_HOME']}/data/simple/G1WholebodyBendPick-v1",
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=40_000,
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=1e-4,
+            decay_steps=40_000,
+            decay_lr=1e-8,
+        ),
+        pytorch_weight_path=f"{os.environ['PSI_HOME']}/cache/checkpoints/openpi/pi05_droid",
+        policy_metadata={"dataset": "G1WholebodyBendPick-v1"},
         checkpoint_base_dir=f".runs/openpi-05"
     ),
 

@@ -131,6 +131,8 @@ class FinetuneTrainer(Trainer):
             else:
                 self.model.action_header.load_state_dict(state_dict, strict=False)
             overwatch.info("loaded pretrained action header successfully.")
+        else:
+            overwatch.info("No pretrained action header specified, training from scratch.")
         
         if self.train_cfg.data_parallel == "deepspeed":
             # HACK to set correct config for deepspeed

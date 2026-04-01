@@ -8,7 +8,7 @@ from pink import solve_ik as pink_solve_ik
 from pink.limits import VelocityLimit
 from pink.tasks.task import Task
 
-from robot_control.robot_arm_joints import G1_JOINT_NAME_MAP
+from teleop.robot_control.robot_arm_joints import G1_JOINT_NAME_MAP
 
 from datetime import datetime
 import os, sys, atexit

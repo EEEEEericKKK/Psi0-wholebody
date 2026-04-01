@@ -11,16 +11,16 @@ from unitree_sdk2py.idl.default import unitree_hg_msg_dds__LowCmd_
 from unitree_sdk2py.idl.unitree_go.msg.dds_._SportModeState_ import SportModeState_
 from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_
 from unitree_sdk2py.utils.crc import CRC
-from robot_control.remote_controller import RemoteController
+from teleop.robot_control.remote_controller import RemoteController
 
-from robot_control.robot_arm_joints import (
+from teleop.robot_control.robot_arm_joints import (
     G1_29_JointArmIndex,
     G1_29_JointLowerIndex,
     G1_29_BodyIndex,
     H1_2_JointArmIndex,
     H1_2_JointIndex,
 )
-from utils.logger import logger
+from teleop.utils.logger import logger
 
 # kTopicLowCommand = "rt/arm_sdk"
 kTopicLowCommand = "rt/lowcmd"
@@ -181,16 +181,23 @@ class BaseBodyController:
         #     100, 100, 100, 100, 30, 30, 30,
         # ])
 
+        # self.stiffness = np.array([
+        #     150+15, 150+15, 150+15, 300+30, 80+80, 20+20,
+        #     150+15, 150+15, 150+15, 300+30, 80+80, 20+20,
+        #     400+40, 400+40, 400+40,
+        #     50, 50, 50, 50, 30, 30, 30,
+        #     50, 50, 50, 50, 30, 30, 30,
+        # ])
         self.stiffness = np.array([
-            150+15, 150+15, 150+15, 300+30, 80+80, 20+20,
-            150+15, 150+15, 150+15, 300+30, 80+80, 20+20,
-            400+40, 400+40, 400+40,
+            150, 150, 150, 300, 80, 20,
+            150, 150, 150, 300, 80, 20 ,
+            400, 400, 400,
             50, 50, 50, 50, 30, 30, 30,
             50, 50, 50, 50, 30, 30, 30,
         ])
         # self.stiffness = np.array([
-        #     150, 150, 150, 300, 80, 20,
-        #     150, 150, 150, 300, 80, 20 ,
+        #     150-15, 150-15, 150-15, 300-30, 80-10, 20-5,
+        #     150-15, 150-15, 150-15, 300-30, 80-10, 20-5,
         #     400, 400, 400,
         #     50, 50, 50, 50, 30, 30, 30,
         #     50, 50, 50, 50, 30, 30, 30,
@@ -257,8 +264,8 @@ class BaseBodyController:
             )
 
             for idx, id in enumerate(self.JointArmIndex):
-                # self.msg.motor_cmd[id].q = cliped_arm_q_target[idx]
-                self.msg.motor_cmd[id].q = arm_q_target[idx]
+                self.msg.motor_cmd[id].q = cliped_arm_q_target[idx]
+                # self.msg.motor_cmd[id].q = arm_q_target[idx]
                 self.msg.motor_cmd[id].dq = 0
                 self.msg.motor_cmd[id].tau = arm_tauff_target[idx]
             

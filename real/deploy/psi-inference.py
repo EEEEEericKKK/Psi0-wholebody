@@ -15,7 +15,7 @@ import zmq
 
 URL = "http://localhost:8014/act" 
 
-TASK_INSTRUCTION = "g1-fullbody/Pick_toys_into_box_and_lift_and_turn_and_put_on_the_chair_new"
+TASK_INSTRUCTION = "g1/Spray_the_bowl_and_wipe_it_and_stack_it_up"
 
 FREQ_VLA = 30     
 FREQ_CTRL = 60  
@@ -51,7 +51,7 @@ def get_observation(camera, state):
     img = frame.astype(np.uint8)
 
     img_obs = {
-        "video": frame,
+        "observation.images.egocentric": frame,
     }
     state_obs = {
         "arm_joints": np.array(state["arm_joints"]),

@@ -8,11 +8,11 @@ from pathlib import Path
 
 import numpy as np
 
-from constants import *
+from teleop.constants import *
 from master_whole_body import RobotTaskmaster
 # from master import RobotTaskmaster
 from progress import ProgressTracker
-from utils.logger import logger
+from teleop.utils.logger import logger
 from worker import RobotDataWorker
 
 FREQ = 30

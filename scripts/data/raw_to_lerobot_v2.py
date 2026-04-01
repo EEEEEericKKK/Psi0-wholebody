@@ -166,21 +166,6 @@ class HE2LeRobotConverter:
     def get_robot_type(ep_dir: Path) -> str:
         episode_data = read_episode_data(ep_dir / "data.json")
         return episode_data.get("robot_type", "g1")
-        """ if not data_list:
-            return "h1"
-        for frame in data_list:
-            st = frame.get("states", {})
-            if isinstance(st, dict) and "robot_type" in st:
-                try:
-                    return str(st["robot_type"]).lower()
-                except Exception:
-                    return "h1"
-            if "robot_type" in frame:
-                try:
-                    return str(frame["robot_type"]).lower()
-                except Exception:
-                    return "h1"
-        return "h1" """
 
     def load_depth(self, depth_lzma_path: Path) -> Optional[np.ndarray]:
         try:

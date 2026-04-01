@@ -45,7 +45,7 @@ def get_observation(camera, state):
     img = frame.astype(np.uint8)
 
     img_obs = {
-        "video": frame,
+        "observation.images.egocentric": frame,
     }
     state_obs = {
         "arm_joints": np.array(state["arm_joints"]),
@@ -294,7 +294,7 @@ def main(server_url):
                 # dyaw = action[35]
                 target_yaw = action[35]
 
-                vx = 0.35 if vx > 0.25 else 0
+                vx = 0.6 if vx > 0.25 else 0
                 vy = 0 if abs(vy) < 0.3 else 0.5 * (1 if vy > 0 else -1)
 
 

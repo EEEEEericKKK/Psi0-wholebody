@@ -39,7 +39,6 @@ logging.getLogger("datasets").setLevel(logging.ERROR)
 def detect_robot_type(ep_dir: Path) -> str:
     return HE2LeRobotConverter.get_robot_type(ep_dir)
 
-
 @dataclass
 class InfoDict:
     codebase_version: str
@@ -110,37 +109,18 @@ def read_json_list(path: Path) -> List[Dict[str, Any]]:
 
 
 def iter_tasks(data_root: Path, tasks:list[str]=[]) -> Iterator[Tuple[str, Path, str, str]]:
-    for cat_dir in sorted(
-        [p for p in data_root.iterdir() if p.is_dir()], key=lambda p: p.name.lower()
-    ):
-        for task_dir in sorted([p for p in cat_dir.iterdir() if p.is_dir()], key=lambda p: p.name.lower()):
+        for task_dir in sorted([p for p in data_root.iterdir() if p.is_dir()], key=lambda p: p.name.lower()):
             # skip processed tasks
             if task_dir.name not in tasks:
                 continue
-            yield f"{cat_dir.name}/{task_dir.name}", task_dir, cat_dir.name, task_dir.name
+            yield f"default/{task_dir.name}", task_dir, "default", task_dir.name
 
 
 class HE2LeRobotConverter:
     def __init__(self):
         self.features = Features(
             {
-                # "observation.depth.egocentric": Array2D(dtype="float32", shape=(480, 640)),
-                # "observation.lidar": Sequence(Sequence(Value("float32"))),
-                # "observation.imu.quaternion": Sequence(Value("float32")),
-                # "observation.imu.accelerometer": Sequence(Value("float32")),
-                # "observation.imu.gyroscope": Sequence(Value("float32")),
-                # "observation.imu.rpy": Sequence(Value("float32")),
-                # "observation.odometry.position": Sequence(Value("float32")),
-                # "observation.odometry.velocity": Sequence(Value("float32")),
-                # "observation.odometry.rpy": Sequence(Value("float32")),
-                # "observation.odometry.quat": Sequence(Value("float32")),
-                # "observation.arm_joints": Sequence(Value("float32")),
-                # "observation.leg_joints": Sequence(Value("float32")),
-                # "observation.hand_joints": Sequence(Value("float32")),
-                # "observation.prev_rpy": Sequence(Value("float32")),
-                # "observation.prev_height": Value("float32"),
                 "states": Sequence(Value("float32")),
-                # "observation.tactile": Array2D(dtype="float32", shape=(-1, 4)),
                 "action": Sequence(Value("float32")),
                 "timestamp": Value("float32"),
                 "frame_index": Value("int64"),
@@ -159,22 +139,9 @@ class HE2LeRobotConverter:
 
     @staticmethod
     def get_robot_type(ep_dir: Path) -> str:
-        data_list = read_json_list(ep_dir / "data.json")
-        if not data_list:
-            return "h1"
-        for frame in data_list:
-            st = frame.get("states", {})
-            if isinstance(st, dict) and "robot_type" in st:
-                try:
-                    return str(st["robot_type"]).lower()
-                except Exception:
-                    return "h1"
-            if "robot_type" in frame:
-                try:
-                    return str(frame["robot_type"]).lower()
-                except Exception:
-                    return "h1"
-        return "h1"
+        episode_data = read_json_list(ep_dir / "data.json")
+        return episode_data[-1].get("robot_type", "g1")
+        
 
     def load_depth(self, depth_lzma_path: Path) -> Optional[np.ndarray]:
         try:
@@ -216,7 +183,7 @@ class HE2LeRobotConverter:
                 values.append(raw_vals)
         return values
 
-    def build_obs(self, prev_rpy_height:Dict[str, Any], frame: Dict[str, Any], depth_arr: np.ndarray, pts: np.ndarray) -> Dict[str, Any]:
+    def build_obs(self, prev_rpy_height:Dict[str, Any], frame: Dict[str, Any], depth_arr: np.ndarray) -> Dict[str, Any]:
         states = frame.get("states", {}) or {}
 
         imu_in = states.get("imu", {}) if isinstance(states, dict) else {}
@@ -238,26 +205,8 @@ class HE2LeRobotConverter:
         hand_joints = [float(x) for x in states.get("hand_state", [])]
         torso_rpy = [float(x) for x in prev_rpy_height["torso_rpy"]]
         torso_height = [float(prev_rpy_height["torso_height"])]
-
         tactile = self.load_tactile(states)
 
-        # return {
-        #     # "observation.depth.egocentric": depth_arr,
-        #     # "observation.lidar": pts,
-        #     # "observation.imu.quaternion": imu["quaternion"],
-        #     # "observation.imu.accelerometer": imu["accelerometer"],
-        #     # "observation.imu.gyroscope": imu["gyroscope"],
-        #     # "observation.odometry.position": odometry["position"],
-        #     # "observation.odometry.velocity": odometry["velocity"],
-        #     # "observation.odometry.rpy": odometry["rpy"],
-        #     # "observation.odometry.quat": odometry["quat"],
-        #     "observation.prev_height": prev_rpy_height["torso_height"],
-        #     "observation.prev_rpy": prev_rpy_height["torso_rpy"], 
-        #     "observation.leg_joints": leg_joints,
-        #     "observation.arm_joints": arm_joints,
-        #     "observation.hand_joints": hand_joints,
-        #     # "observation.tactile": tactile,
-        # }
         return {
             "states": hand_joints + arm_joints + torso_rpy + torso_height
         }
@@ -337,17 +286,10 @@ class HE2LeRobotConverter:
 
             rgb_paths   = [safe_path(episode_dir, f, "image") for f in data_list]
             depth_paths = [safe_path(episode_dir, f, "depth") for f in data_list]
-            lidar_paths = [safe_path(episode_dir, f, "lidar") for f in data_list]
 
             def iter_depths():
                 for p in depth_paths:
                     yield self.load_depth(p) if p else np.full((480, 640), np.nan, np.float32)
-
-            def iter_lidars():
-                for p in lidar_paths:
-                    yield self.load_lidar(p) if p else np.zeros((0, 3), np.float32)
-
-
 
             rows: List[Dict[str, Any]] = []
             prev_rpy_height = {
@@ -355,8 +297,8 @@ class HE2LeRobotConverter:
                 "torso_height": 0.75,
             }
 
-            for i, (frame, depth_arr, lidar_pts) in enumerate(zip(data_list, iter_depths(), iter_lidars())):
-                obs = self.build_obs(prev_rpy_height, frame, depth_arr, lidar_pts)
+            for i, (frame, depth_arr) in enumerate(zip(data_list, iter_depths())):
+                obs = self.build_obs(prev_rpy_height, frame, depth_arr)
                 act = self.build_act(frame)
 
                 rows.append(
@@ -519,6 +461,9 @@ class HE2LeRobotConverter:
                 filtered.append((task_idx, ep_dir, ep_index, desc, tname))
                 ep_index += 1
 
+        if not filtered:
+            raise ValueError(f"No episodes matched robot type '{robot_type}'.")
+
         filtered = [
             (task_idx, ep_dir, ep_index, desc, tname)
             for (task_idx, ep_dir, ep_index, desc, tname) in filtered
@@ -528,8 +473,8 @@ class HE2LeRobotConverter:
         self.episode_sources = filtered
 
         if not self.episode_sources:
-            print(f"No episodes matched robot type '{robot_type}'.")
-            return
+            print(f"All episodes already processed (skipped {len(done_eps)}). Nothing to do.")
+            return False
 
         print(f"Resuming: {len(filtered)} new episodes (skipped {len(done_eps)})")
 
@@ -559,6 +504,7 @@ class HE2LeRobotConverter:
         self.total_frames = sum(self.lengths_by_episode.values())
 
         print(f"Now total episodes: {self.num_episodes}, frames: {self.total_frames}")
+        return True
 
 
 
@@ -613,23 +559,7 @@ class HE2LeRobotConverter:
                     "has_audio": False,
                 },
             },
-            # "observation.depth.egocentric": {"dtype": "float32", "shape": [480, 640], "names": ["height", "width"]},
-            # "observation.lidar": {"dtype": "float32", "shape": [-1, 3]},
-            # "observation.imu.quaternion": {"dtype": "float32", "shape": [4]},
-            # "observation.imu.accelerometer": {"dtype": "float32", "shape": [3]},
-            # "observation.imu.gyroscope": {"dtype": "float32", "shape": [3]},
-            # "observation.imu.rpy": {"dtype": "float32", "shape": [3]},
-            # "observation.odometry.position": {"dtype": "float32", "shape": [3]},
-            # "observation.odometry.velocity": {"dtype": "float32", "shape": [3]},
-            # "observation.odometry.rpy": {"dtype": "float32", "shape": [3]},
-            # "observation.odometry.quat": {"dtype": "float32", "shape": [4]},
-            # "observation.arm_joints": {"dtype": "float32", "shape": [-1]},
-            # "observation.leg_joints": {"dtype": "float32", "shape": [-1]},
-            # "observation.hand_joints": {"dtype": "float32", "shape": [-1]},
-            # "observation.prev_rpy": {"dtype": "float32", "shape": [3]},
-            # "observation.prev_height": {"dtype": "float32", "shape": [1]},
             "states": {"dtype": "float32", "shape": [-1]},
-            # "observation.tactile": {"dtype": "float32", "shape": [-1, -1]},
             "action": {"dtype": "float32", "shape": [-1]},
             "timestamp": {"dtype": "float32", "shape": [1]},
             "frame_index": {"dtype": "int64", "shape": [1]},
@@ -639,7 +569,7 @@ class HE2LeRobotConverter:
             "task_index": {"dtype": "int64", "shape": [1]},
         }
 
-        robot_types = set(episodes_df["robot_type"].tolist()) if not episodes_df.empty else {"h1"}
+        robot_types = set(episodes_df["robot_type"].tolist()) if not episodes_df.empty else {"g1"}
         global_robot_type = list(robot_types)[0] if len(robot_types) == 1 else "mixed"
 
         info = InfoDict(
@@ -697,7 +627,8 @@ def main():
         d.mkdir(parents=True, exist_ok=True)
 
     pipeline = HE2LeRobotConverter()
-    pipeline.run(data_root, work_dir, args.chunks_size, args.num_workers, args.robot_type, args.task)
+    if not pipeline.run(data_root, work_dir, args.chunks_size, args.num_workers, args.robot_type, args.task):
+        return
     pipeline.write_meta(work_dir)
 
     if args.push:

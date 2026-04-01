@@ -462,13 +462,15 @@ class ActionStateTransform(FieldTransform):
             self.state_max = pad_to_len(np.array(self.state_max, dtype=np.float32), self.pad_state_dim, dim=0)[0].tolist()
 
     def __call__(self, data: dict[str, Any], **kwargs) -> dict[str, Any]:
-        assert self.action_min is not None and self.action_max is not None
+        assert self.action_min is not None and self.action_max is not None, \
+            f"{self.stat_path} is not loaded properly. Probably {resolve_path(self.stat_path)} does not exist."
         action_min = np.array(self.action_min, dtype=np.float32)
         action_max = np.array(self.action_max, dtype=np.float32)
         if self.normalize_state:
             data["states"] = self.normalize_state_func(data["states"])
 
-        ill_mask = (action_max - action_min) == 0
+        # tolerate near-zero, not just exact zero
+        ill_mask = np.abs(action_max - action_min) < 1e-4 * (np.abs(action_max) + np.abs(action_min) + 1e-8) 
         action_max[ill_mask] = 1.0  # prevent division by zero
         actions_normalized = np.where(
             ill_mask, data["actions"], (data["actions"] - action_min) / (action_max - action_min) * 2 - 1
@@ -478,6 +480,9 @@ class ActionStateTransform(FieldTransform):
             actions = np.where(self.action_norm_masks, actions_normalized, data["actions"])
         else: 
             actions = actions_normalized
+
+        # if (np.abs(actions) > 10.0).any():
+        #     print("Error: values outside quantile range during normalization.")
 
         actions = np.clip(actions, -1, 1).astype(np.float32)
         # print(data["dataset"], actions.max(), actions.min(), actions.mean(), actions.std())
@@ -493,8 +498,8 @@ class ActionStateTransform(FieldTransform):
     def normalize_state_func(self, states, **kwargs):
         state_min = np.array(self.state_min, dtype=np.float32)
         state_max = np.array(self.state_max, dtype=np.float32)
-        # Normalize states
-        ill_mask = (state_max - state_min) == 0
+        # Normalize states, tolerate near-zero, not just exact zero
+        ill_mask = np.abs(state_max - state_min) < 1e-4 * (np.abs(state_max) + np.abs(state_min) + 1e-8)
         state_max[ill_mask] = 1.0  # prevent division by zero
         current_state = np.where(
             ill_mask, 0, 

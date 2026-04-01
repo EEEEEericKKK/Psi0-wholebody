@@ -10,14 +10,14 @@ import csv
 import mujoco
 import numpy as np
 import torch
-from merger import DataMerger
-from robot_control.robot_body import G1_29_BodyController
-from robot_control.robot_body_ik import G1_29_BodyIK
-from robot_control.robot_hand_inspire import Inspire_Controller
-from robot_control.robot_hand_unitree import Dex3_1_Controller
-from utils.logger import logger
-from writers import IKDataWriter
-from robot_control.compute_tau import GetTauer
+from teleop.merger import DataMerger
+from teleop.robot_control.robot_body import G1_29_BodyController
+from teleop.robot_control.robot_body_ik import G1_29_BodyIK
+from teleop.robot_control.robot_hand_inspire import Inspire_Controller
+from teleop.robot_control.robot_hand_unitree import Dex3_1_Controller
+from teleop.utils.logger import logger
+from teleop.writers import IKDataWriter
+from teleop.robot_control.compute_tau import GetTauer
 
 from scipy.spatial.transform import Rotation
 
@@ -26,7 +26,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from constants import *
+from teleop.constants import *
 
 CONTROL_DELAY = 1.0 / 60
 
@@ -306,57 +306,9 @@ class RobotTaskmaster:
 
     def get_ik_observation(self, record=True):
         rpy = self.rpy
-
-        # if record:
-        #     self.target_yaw += self.vyaw * self.dt
-
-        #     dyaw = rpy[2] - self.yaw_offset - self.target_yaw
-        #     # dyaw = -self.vyaw
-        #     dyaw = np.remainder(dyaw + np.pi, 2 * np.pi) - np.pi
-        #     if self._in_place_stand_flag:
-        #         dyaw = 0.0
-            
-        #     self.dyaw = dyaw
-
-        # if not hasattr(self, "last_vyaw"):
-        #     self.last_vyaw = 0.0
-
-        # # 如果上一帧在旋转，这一帧停止旋转 → 触发 reset
-        # turn_stopped = (abs(self.last_vyaw) > 0.05) and (abs(self.vyaw) < 0.05)
-        # if turn_stopped:
-        #     print("last_vyaw, current vyaw:", self.last_vyaw, self.vyaw)
-
-        # if self._idx == 10*50:
-        #     self.reset_yaw_offset = True
-
-        # if self._idx > 10*50 and self._idx < 13 * 50:
-        #     self.vyaw = -0.524
-        # elif self._idx > 13 * 50 and self._idx < 26 * 50:
-        #     self.vx = 0.35
-        # elif self._idx > 26 * 50 and self._idx < 29 * 50:
-        #     self.vyaw = 0.3
         
-        # 如果上一帧在旋转，这一帧停止旋转 → 触发 reset
-        # turn_stopped = (abs(self.last_vyaw) > 0.05) and (abs(self.vyaw) < 0.05)
-
-        # self._idx += 1
-        # self.last_vyaw = self.vyaw
-        
-
-
         if record:
             self.target_yaw += self.vyaw * self.dt
-            
-            # if turn_stopped:
-            #     # reset to align IMU yaw
-            #     print("turn stopped, current_yaw:", self.target_yaw)
-            #     self.target_yaw = self.rpy[2] - self.yaw_offset
-            #     print("target_yaw reset to:", self.target_yaw)
-            #     print("rpy[2]:", self.rpy[2], "yaw_offset:", self.yaw_offset)
-
-            # self.last_vyaw = self.vyaw
-
-            # self.target_yaw += self.vyaw * self.dt
 
             dyaw = rpy[2] - self.yaw_offset - self.target_yaw
             dyaw = np.remainder(dyaw + np.pi, 2 * np.pi) - np.pi
@@ -368,25 +320,12 @@ class RobotTaskmaster:
             self.dyaw = dyaw
         
         else:
-            # self.last_vyaw = self.vyaw
-            # if turn_stopped or self._in_place_stand_flag:
-            #     self.dyaw = 0
-            # if turn_stopped:
-            #     # reset to align IMU yaw
-            #     self.target_yaw = self.rpy[2] - self.yaw_offset
-
-            # self.last_vyaw = self.vyaw
-
             dyaw = rpy[2] - self.yaw_offset - self.target_yaw
             dyaw = np.remainder(dyaw + np.pi, 2 * np.pi) - np.pi
             if self._in_place_stand_flag:
                 dyaw = 0.0
 
             self.dyaw = dyaw
-
-            # if self._in_place_stand_flag:
-            #     self.dyaw = 0.0
-
 
 
         obs_idx = np.r_[0:19, 22:26] 
@@ -485,21 +424,8 @@ class RobotTaskmaster:
             self.session_start_event.set()
             self.episode_kill_event.set()
 
-        # self.vx = 0.5 * ly
-        # self.vy = -0.5 * lx
-
-        # self.vyaw = -0.5 * rx
-        # if rx >= 0.2:
-        #     self.vyaw = -0.25
-
-        # elif rx <= -0.2:
-        #     self.vyaw = 0.25
-        
-        # else:
-        #     self.vyaw = 0
-
         def scale_vx(v):
-            return 0 if abs(v) < 0.3 else 0.35 * (1 if v > 0 else -1)
+            return 0 if abs(v) < 0.3 else 0.6 * (1 if v > 0 else -1)
 
         def scale_vy(v):
             # return 0 if abs(v) < 0.3 else 0.35 * (1 if v > 0 else -1)
