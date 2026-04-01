@@ -4,9 +4,9 @@
 # Set your paths here
 
 # Required paths - modify these according to your environment
-export EGODEX_DATA_ROOT="/scratch/workspace/sunlichen_umass_edu-simple/wholebodyVLA/data/EgoDex"
+export EGODEX_DATA_ROOT="/lustre/fs12/portfolios/nvr/projects/nvr_av_foundations/datasets/ego-dex"
 # export EGODEX_DATA_ROOT="/path/to/raw/ego-dex"
-export T5_MODEL_PATH="/home/sunlichen_umass_edu/scratch/wholebodyVLA/checkpoints/t5-v1_1-xxl"
+export T5_MODEL_PATH="/hfm/cache/checkpoints/t5-v1_1-xxl"
 
 # Project structure (auto-detected)
 export HRDT_PROJECT_ROOT="$(pwd)/src/h_rdt"

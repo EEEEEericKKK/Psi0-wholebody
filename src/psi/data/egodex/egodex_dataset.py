@@ -15,7 +15,7 @@ from pathlib import Path
 import warnings
 import random
 import json
-# from torchcodec.decoders import VideoDecoder  # Replaced with OpenCV
+from torchcodec.decoders import VideoDecoder
 import time
 import pickle
 from scipy.spatial.transform import Rotation as R
@@ -338,8 +338,10 @@ class EgoDexDataset:
         Returns:
             frames: (img_history_size, H, W, 3) image frames
         """
-        cap = cv2.VideoCapture(str(mp4_path))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        # cap = cv2.VideoCapture(str(mp4_path))
+        # total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        decoder = VideoDecoder(mp4_path, device='cpu', dimension_order='NHWC')
+        total_frames = len(decoder)
 
         # Calculate sampling range following cvpr_real_dataset.py logic
         start_i = max(idx - self.img_history_size * self.upsample_rate + 1, 0)
@@ -350,11 +352,10 @@ class EgoDexDataset:
         try:
             for i, frame_idx in enumerate(range(start_i, idx + 1, self.upsample_rate)):
                 if frame_idx < total_frames:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-                    ret, frame = cap.read()
-                    if ret and frame is not None:
-                        # OpenCV loads as BGR, convert to RGB
-                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = decoder[frame_idx]
+                    if frame is not None:
+                        # BGR to RGB
+                        frame = frame.cpu().numpy()
                         frames.append(frame)
                     else:
                         print(f"Warning: Not enough frames in {mp4_path}")
@@ -364,10 +365,7 @@ class EgoDexDataset:
                     print(f"Warning: Frame index exceeds total frames in {mp4_path}")
                     break
         except Exception as e:
-            cap.release()
             raise ValueError(f"Error loading image frames: {e}")
-        finally:
-            cap.release()
 
 
         # Convert to numpy array
