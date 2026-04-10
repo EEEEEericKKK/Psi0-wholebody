@@ -503,18 +503,33 @@ class PosttrainTrainer(Trainer):
 
         # action L1 errors
         avg_action_errors_denormed = action_l1_err_list_denormed.mean(0)  # (Da,) NOTE only if the error is L1 (linear)
-        labels_denormed = [
-            "hand_left_l1",
-            "hand_right_l1",
-            "arm_left_l1",
-            "arm_right_l1",
-        ]
-        avg_lr_action_err_denormed = np.split(
-            avg_action_errors_denormed, [7, 14, 21], axis=-1
-        )
-        l1_action_errs = [
-            float(np.mean(x)) for x in avg_lr_action_err_denormed
-        ]
+        if avg_action_errors_denormed.shape[-1] == 16:
+            # 16D hands_only layout: left hand (6), right hand (6), head pos xyz (3), discrete (1)
+            # Ignore discrete token in grouped L1 reporting.
+            labels_denormed = [
+                "hand_left_l1",
+                "hand_right_l1",
+                "head_pos_l1",
+            ]
+            grouped_errs = [
+                avg_action_errors_denormed[:6],
+                avg_action_errors_denormed[6:12],
+                avg_action_errors_denormed[12:15],
+            ]
+            l1_action_errs = [float(np.mean(x)) for x in grouped_errs]
+        else:
+            labels_denormed = [
+                "hand_left_l1",
+                "hand_right_l1",
+                "arm_left_l1",
+                "arm_right_l1",
+            ]
+            avg_lr_action_err_denormed = np.split(
+                avg_action_errors_denormed, [7, 14, 21], axis=-1
+            )
+            l1_action_errs = [
+                float(np.mean(x)) for x in avg_lr_action_err_denormed
+            ]
 
         # log metrics
         return {

@@ -2,6 +2,7 @@
 
 set -e
 
+cd /proj/inf-scaling/h2vla/wholebodyVLA/Psi0-wholebody
 source .venv-psi/bin/activate
 
 export OMP_NUM_THREADS=8

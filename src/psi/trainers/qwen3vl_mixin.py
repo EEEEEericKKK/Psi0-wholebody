@@ -17,6 +17,43 @@ from torch.nn.utils.rnn import pad_sequence
 from psi.utils import initialize_overwatch #, shorten, seed_everything
 overwatch = initialize_overwatch(__name__)
 
+def _pad_and_stack_arrays(arrays: List[np.ndarray]) -> np.ndarray:
+    """Pad arrays to the max shape and stack them."""
+    if not arrays:
+        return np.array([])
+    # Find max shape across all arrays
+    max_shape = list(arrays[0].shape)
+    for arr in arrays[1:]:
+        for i, dim in enumerate(arr.shape):
+            if dim > max_shape[i]:
+                max_shape[i] = dim
+    # Pad each array to max_shape
+    padded = []
+    for arr in arrays:
+        pad_width = [(0, max_dim - arr.shape[i]) for i, max_dim in enumerate(max_shape)]
+        padded.append(np.pad(arr, pad_width, mode='constant', constant_values=0))
+    return np.stack(padded)
+
+def _pad_and_stack_tensors(tensors: List[torch.Tensor]) -> torch.Tensor:
+    """Pad tensors to the max shape and stack them."""
+    if not tensors:
+        return torch.tensor([])
+    # Find max shape across all tensors
+    max_shape = list(tensors[0].shape)
+    for t in tensors[1:]:
+        for i, dim in enumerate(t.shape):
+            if dim > max_shape[i]:
+                max_shape[i] = dim
+    # Pad each tensor to max_shape (torch.nn.functional.pad uses reverse order)
+    padded = []
+    for t in tensors:
+        # Build pad tuple in reverse dimension order for F.pad
+        pad_tuple = []
+        for i in range(len(max_shape) - 1, -1, -1):
+            pad_tuple.extend([0, max_shape[i] - t.shape[i]])
+        padded.append(torch.nn.functional.pad(t, pad_tuple, mode='constant', value=0))
+    return torch.stack(padded)
+
 class PaddedCollatorForActionPrediction:
     def __init__(self, model_max_length, pad_token_id, padding_side="right", pixel_values_dtype=torch.float32):
         self.model_max_length = model_max_length
@@ -70,7 +107,7 @@ class PaddedCollatorForActionPrediction:
         if dataset_names is not None:
             output["dataset_name"] = dataset_names
 
-        raw_actions = np.stack([instance["raw_actions"] for instance in instances]) if "raw_actions" in instances[0] else None
+        raw_actions = _pad_and_stack_arrays([instance["raw_actions"] for instance in instances]) if "raw_actions" in instances[0] else None
         if raw_actions is not None:
             output["raw_actions"] = raw_actions
 
@@ -133,12 +170,12 @@ class PaddedCollatorForTogether:
         if dataset_names is not None:
             output["dataset_name"] = dataset_names
 
-        raw_actions = np.stack([instance["raw_actions"] for instance in instances]) if "raw_actions" in instances[0] else None
+        raw_actions = _pad_and_stack_arrays([instance["raw_actions"] for instance in instances]) if "raw_actions" in instances[0] else None
         if raw_actions is not None:
             output["raw_actions"] = raw_actions
 
         # print(type(instances[0]["actions_mask"]), dataset_names)
-        actions_mask = torch.stack([torch.from_numpy(instance["actions_mask"]) for instance in instances]) if "actions_mask" in instances[0] else None
+        actions_mask = _pad_and_stack_tensors([torch.from_numpy(instance["actions_mask"]) for instance in instances]) if "actions_mask" in instances[0] else None
         if actions_mask is not None:
             output["actions_mask"] = actions_mask
 
@@ -146,11 +183,11 @@ class PaddedCollatorForTogether:
         if raw_images is not None:
             output["raw_images"] = raw_images
 
-        actions = torch.stack([torch.from_numpy(np.array(instance["actions"])) for instance in instances]) if "actions" in instances[0] else None
+        actions = _pad_and_stack_tensors([torch.from_numpy(np.array(instance["actions"])) for instance in instances]) if "actions" in instances[0] else None
         if actions is not None:
             output["actions"] = actions
 
-        states = torch.stack([torch.from_numpy(np.array(instance["states"])) for instance in instances]) if "states" in instances[0] else None
+        states = _pad_and_stack_tensors([torch.from_numpy(np.array(instance["states"])) for instance in instances]) if "states" in instances[0] else None
         if states is not None:
             output["states"] = states
 

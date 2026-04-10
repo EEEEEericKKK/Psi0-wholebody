@@ -2,18 +2,18 @@
 
 set -e
 
-source .venv-psi/bin/activate
+cd /proj/inf-scaling/h2vla/wholebodyVLA/Psi0-wholebody
+
+source /proj/inf-scaling/h2vla/wholebodyVLA/Psi0-wholebody/common_setup.sh
+source /proj/inf-scaling/h2vla/wholebodyVLA/Psi0-wholebody/.env
+source /proj/inf-scaling/h2vla/wholebodyVLA/Psi0-wholebody/.venv-psi/bin/activate
 
 export OMP_NUM_THREADS=8
 export TF_CPP_MIN_LOG_LEVEL=3
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1}
-
-NNODES=1
-NPROC_PER_NODE=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 
 args="posttrain_he_psi0_config \
 --seed=292285 \
---exp=posttrain \
+--exp=posttrain_16d \
 --timestamp=$(date +"%y%m%d%H%M") \
 --train.name=posttrain \
 --train.data_parallel=ddp \
@@ -23,10 +23,10 @@ args="posttrain_he_psi0_config \
 --train.max_checkpoints_to_keep=5 \
 --train.gradient_accumulation_steps=1 \
 --train.learning_rate=1e-4 \
---train.max_training_steps=1000000 \
+--train.max_training_steps=10000 \
 --train.warmup_ratio=None \
---train.warmup_steps=1000 \
---train.checkpointing_steps=100 \
+--train.warmup_steps=100 \
+--train.checkpointing_steps=2000 \
 --train.validation_steps=1000 \
 --train.val_num_batches=20 \
 --train.max_grad_norm=1.0 \
@@ -39,13 +39,14 @@ args="posttrain_he_psi0_config \
 --data.use-delta-actions \
 --data.transform.repack.action-chunk-size=16 \
 --data.transform.repack.use-delta-actions \
---data.transform.repack.pad-action-dim=36 \
---data.transform.repack.pad-state-dim=36 \
+--data.transform.repack.action-format=hands_only \
+--data.transform.repack.pad-action-dim=16 \
+--data.transform.repack.pad-state-dim=16 \
 --data.transform.field.action_norm_type=bounds_q99 \
---data.transform.field.stat-path=assets/stats/he_raw_rel_stats_combined_no_static.json
+--data.transform.field.stat-path=assets/stats/he_raw_rel_stats_16d.json \
 --data.transform.field.no-normalize-state \
---data.transform.field.pad-action-dim=36 \
---data.transform.field.pad-state-dim=36 \
+--data.transform.field.pad-action-dim=16 \
+--data.transform.field.pad-state-dim=16 \
 --data.transform.model.resize.size 240 320 \
 --data.transform.model.center_crop.size 240 320 \
 --data.transform.model.no-img-aug \
@@ -53,15 +54,15 @@ args="posttrain_he_psi0_config \
 --model.noise-scheduler=flow \
 --model.n_conditions=0 \
 --model.action-chunk-size=16 \
---model.action-dim=36 \
+--model.action-dim=16 \
 --model.action-exec-horizon=16 \
 --model.observation-horizon=1 \
---model.odim=36 \
+--model.odim=16 \
 --model.view_feature_dim=2048 \
 --model.no-tune-vlm \
 --model.no-use_film \
 --model.no-combined_temb
 "
 
-torchrun --nproc_per_node=$NPROC_PER_NODE --master_port=29500 scripts/train.py \
+torchrun --nproc_per_node=$NGPUS_PER_NODE --master_port=$MASTER_PORT --nnodes=$NNODES --node_rank=$NODE_RANK --master_addr=$MASTER_ADDR scripts/train.py \
     ${args}

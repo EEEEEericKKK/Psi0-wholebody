@@ -704,46 +704,268 @@ class Qwen3vlModelTransform(ModelTransform):
 
 class HEPosttrainRepackTransform(RepackTransform):
     dataset_name: str = "humanoid-everyday"
+    hands_only_dim: int = 16
     num_past_frames: int = 0
     action_chunk_size: int = 16
     use_delta_actions: bool = True
     pad_action_dim: int | None = None
     pad_state_dim: int | None = None
+    # Output format selection - 'full' (original) or 'hands_only' (2x6DOF + 3D head pos + token)
+    action_format: str = "full"  # Options: "full", "hands_only"
+
+    def _extract_wrist_poses_from_joint_angles(self, data: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Extract wrist 6DOF poses from joint angles or action data.
+        Returns: (left_wrist_6dof, right_wrist_6dof) each of shape (T, 6) [xyz, rpy]
+        """
+        # Try to get wrist data from explicit wrist keys first
+        if "action.wrists.left.xyz" in data and "action.wrists.left.rpy" in data:
+            left_xyz = np.array(data["action.wrists.left.xyz"], dtype=np.float32)
+            left_rpy = np.array(data["action.wrists.left.rpy"], dtype=np.float32)
+            right_xyz = np.array(data["action.wrists.right.xyz"], dtype=np.float32)
+            right_rpy = np.array(data["action.wrists.right.rpy"], dtype=np.float32)
+            
+            # Ensure 2D shape
+            if left_xyz.ndim == 1:
+                left_xyz = left_xyz.reshape(1, -1)
+                left_rpy = left_rpy.reshape(1, -1)
+                right_xyz = right_xyz.reshape(1, -1)
+                right_rpy = right_rpy.reshape(1, -1)
+                
+            left_wrist = np.concatenate([left_xyz, left_rpy], axis=1)
+            right_wrist = np.concatenate([right_xyz, right_rpy], axis=1)
+            return left_wrist, right_wrist
+        
+        # Otherwise, extract from joint_angles based on robot type
+        # For G1/H1 robots, we need to compute forward kinematics or use arm joints
+        # For now, use a placeholder approach: extract arm endpoint positions
+        # This is a simplified version - ideally would use proper FK
+        if "action.joint_angles" not in data:
+            # Fallback: try to infer T from any available action key or observation
+            T = self._infer_time_dimension(data)
+            left_wrist = np.zeros((T, 6), dtype=np.float32)
+            right_wrist = np.zeros((T, 6), dtype=np.float32)
+            return left_wrist, right_wrist
+            
+        raw = data["action.joint_angles"]
+        T = raw.shape[0]
+        
+        # Placeholder: use last 3 joints of each arm as proxy for wrist pose
+        # In a real scenario, you'd compute FK from joint angles
+        # Format assumption: joint_angles contains arm joints that can represent wrist pose
+        if raw.shape[1] >= 14:  # Assuming at least 14 dims for 2 arms
+            # Use last 7 joints per arm as representation (shoulder to wrist)
+            left_arm = raw[:, :7]  # First 7 for left arm
+            right_arm = raw[:, 7:14]  # Next 7 for right arm
+            
+            # Simplified: use subset as 6DOF representation
+            # In reality, you'd do FK to get XYZ + RPY
+            left_wrist = left_arm[:, 1:7]  # Take 6 joints as proxy
+            right_wrist = right_arm[:, 1:7]
+        else:
+            # Fallback: create dummy wrist poses
+            left_wrist = np.zeros((T, 6), dtype=np.float32)
+            right_wrist = np.zeros((T, 6), dtype=np.float32)
+        
+        return left_wrist, right_wrist
+    
+    def _infer_time_dimension(self, data: dict[str, Any]) -> int:
+        """Infer time dimension T from available keys in data."""
+        # Try action keys first
+        for key in data:
+            if key.startswith("action."):
+                arr = np.asarray(data[key])
+                if arr.ndim >= 1:
+                    return arr.shape[0]
+        # Try observation keys
+        for key in ["observation.arm_joints", "observation.hand_joints"]:
+            if key in data:
+                arr = np.asarray(data[key])
+                if arr.ndim >= 1:
+                    return arr.shape[0]
+        # Default fallback
+        return self.action_chunk_size
+
+    def _match_time_dim(self, values: np.ndarray, T: int, fill_value: float = 0.0) -> np.ndarray:
+        if values.ndim == 1:
+            values = values.reshape(1, -1)
+        if values.shape[0] == T:
+            return values.astype(np.float32)
+        if values.shape[0] > T:
+            return values[:T].astype(np.float32)
+        if values.shape[0] == 0:
+            return np.full((T, values.shape[1]), fill_value, dtype=np.float32)
+        tail = np.repeat(values[-1:], T - values.shape[0], axis=0)
+        return np.concatenate([values, tail], axis=0).astype(np.float32)
+
+    def _extract_head_position(self, data: dict[str, Any]) -> np.ndarray:
+        """
+        Extract head/camera 3D position from available keys.
+        Returns: array of shape (T, 3)
+        """
+        T = data["action.joint_angles"].shape[0] if "action.joint_angles" in data else self._infer_time_dimension(data)
+
+        head_keys = [
+            "observation.head.xyz",
+            "observation.head.pos",
+            "observation.head_position",
+            "observation.camera.xyz",
+            "observation.camera_position",
+            "observation.base_position",
+        ]
+        for key in head_keys:
+            if key not in data:
+                continue
+            arr = np.asarray(data[key], dtype=np.float32)
+            if arr.ndim == 1 and arr.shape[0] >= 3:
+                arr = arr[:3].reshape(1, 3)
+                return self._match_time_dim(arr, T)
+            if arr.ndim == 2 and arr.shape[1] >= 3:
+                arr = arr[:, :3]
+                return self._match_time_dim(arr, T)
+
+        if "observation.arm_joints" in data:
+            arm_joints = np.asarray(data["observation.arm_joints"], dtype=np.float32)
+            if arm_joints.ndim == 1 and arm_joints.shape[0] >= 3:
+                arm_joints = arm_joints[:3].reshape(1, 3)
+                return self._match_time_dim(arm_joints, T)
+            if arm_joints.ndim == 2 and arm_joints.shape[1] >= 3:
+                return self._match_time_dim(arm_joints[:, :3], T)
+
+        return np.zeros((T, 3), dtype=np.float32)
+
+    def _extract_discrete_token(self, data: dict[str, Any]) -> np.ndarray:
+        """
+        Extract or compute discrete action token.
+        Returns: array of shape (T, 1)
+        
+        This could represent:
+        - Gripper open/close
+        - Mode switching token
+        - Task phase indicator
+        """
+        T = data["action.joint_angles"].shape[0] if "action.joint_angles" in data else self._infer_time_dimension(data)
+        
+        discrete_keys = [
+            "action.discrete",
+            "action.mode",
+            "action.gripper",
+            "observation.gripper",
+        ]
+        for key in discrete_keys:
+            if key not in data:
+                continue
+            token = np.asarray(data[key], dtype=np.float32)
+            if token.ndim == 1:
+                token = token.reshape(-1, 1)
+            elif token.ndim >= 2:
+                token = token[:, :1]
+            return self._match_time_dim(token, T)
+
+        # Try to get gripper-like signal from hand joints
+        if "observation.hand_joints" in data:
+            hand_joints = np.asarray(data["observation.hand_joints"], dtype=np.float32)
+            if hand_joints.ndim == 2 and hand_joints.shape[1] > 0:
+                token = hand_joints[:, 0:1].astype(np.float32)
+                return self._match_time_dim(token, T)
+            if hand_joints.ndim == 1 and hand_joints.shape[0] > 0:
+                token = hand_joints[:1].reshape(1, 1).astype(np.float32)
+                return self._match_time_dim(token, T)
+        
+        # Fallback: use zeros (could represent "no special mode")
+        return np.zeros((T, 1), dtype=np.float32)
 
     def __call__(
         self,
         data: dict[str, Any],
         **kwargs,
     ) -> dict[str, Any]:
-        # HACK: different action format determines robot type
-        if data["action.joint_angles"].shape[1] == 26:
-            # H1 robot
-            raw = data["action.joint_angles"]
+        if self.action_format == "hands_only":
+            if self.pad_action_dim == 14 or self.pad_state_dim == 14:
+                raise ValueError("14D hands_only is no longer supported. Use 16D (12 hand + 3 head pos + 1 discrete).")
+
+            # 16D = left_hand_6dof (6) + right_hand_6dof (6) + head_pos_xyz (3) + token (1)
+            left_wrist, right_wrist = self._extract_wrist_poses_from_joint_angles(data)
+            head_pos = self._extract_head_position(data)
+            discrete_token = self._extract_discrete_token(data)
+            
+            # Concatenate to form 16D action
             actions = np.concatenate([
-                raw[:, 6:12][::-1], # from left thumb to little
-                np.zeros((raw.shape[0], 1), dtype=np.float32), # pad finger to 7 dof
-                raw[:, 0:6][::-1], # from right thumb to little
-                np.zeros((raw.shape[0], 1), dtype=np.float32), # pad finger to 7 dof
-                raw[:, 12:], # left arm + right arm (each from should to wrist)
-            ], axis=1).astype(np.float32)
+                left_wrist,      # (T, 6)
+                right_wrist,     # (T, 6)
+                head_pos,        # (T, 3)
+                discrete_token,  # (T, 1)
+            ], axis=1).astype(np.float32)  # (T, 16)
+
+            if actions.shape[1] != self.hands_only_dim:
+                raise ValueError(
+                    f"hands_only must produce {self.hands_only_dim}D actions, got {actions.shape[1]}D"
+                )
+            
+            # States: create 16D state vector to match action format.
             hand = data["observation.hand_joints"]
-            states = np.concatenate([
-                hand[:, 6:12],
-                np.zeros((hand.shape[0], 1), dtype=np.float32), # pad finger to 7 dof
-                hand[:, 0:6],
-                np.zeros((hand.shape[0], 1), dtype=np.float32), # pad finger to 7 dof 
-                data["observation.arm_joints"]
-            ], axis=1).astype(np.float32)
+            arm = data["observation.arm_joints"]
+            
+            if hand.ndim == 1:
+                hand = hand.reshape(1, -1)
+            if arm.ndim == 1:
+                arm = arm.reshape(1, -1)
+            
+            # Use the latest proprioceptive state, then pad/truncate to 16D.
+            raw_states = np.concatenate([hand[-1:], arm[-1:]], axis=1).astype(np.float32)
+            
+            if raw_states.shape[1] < self.hands_only_dim:
+                padding = np.zeros((raw_states.shape[0], self.hands_only_dim - raw_states.shape[1]), dtype=np.float32)
+                states = np.concatenate([raw_states, padding], axis=1)
+            else:
+                states = raw_states[:, :self.hands_only_dim]
+            
+            if self.use_delta_actions:
+                if actions.shape[0] < 2:
+                    target_len = max(1, self.action_chunk_size - 1)
+                    actions = np.zeros((target_len, actions.shape[1]), dtype=np.float32)
+                    action_mask = np.zeros((target_len,), dtype=np.float32)
+                else:
+                    actions = actions[1:] - actions[:-1]
+                    action_mask = data["action_mask"][1:]
+            else:
+                action_mask = data["action_mask"]
+            
         else:
-           actions = data["action.joint_angles"].astype(np.float32)
-           states = np.concatenate((data["observation.hand_joints"], data["observation.arm_joints"]), axis=1).astype(np.float32)
+            # ORIGINAL FORMAT: Full humanoid control
+            # HACK: different action format determines robot type
+            if "action.joint_angles" not in data:
+                raise KeyError(
+                    f"action_format='full' requires 'action.joint_angles' key but it's missing. "
+                    f"Available keys: {[k for k in data.keys() if k.startswith('action.')]}"
+                )
+            if data["action.joint_angles"].shape[1] == 26:
+                # H1 robot
+                raw = data["action.joint_angles"]
+                actions = np.concatenate([
+                    raw[:, 6:12][::-1], # from left thumb to little
+                    np.zeros((raw.shape[0], 1), dtype=np.float32), # pad finger to 7 dof
+                    raw[:, 0:6][::-1], # from right thumb to little
+                    np.zeros((raw.shape[0], 1), dtype=np.float32), # pad finger to 7 dof
+                    raw[:, 12:], # left arm + right arm (each from should to wrist)
+                ], axis=1).astype(np.float32)
+                hand = data["observation.hand_joints"]
+                states = np.concatenate([
+                    hand[:, 6:12],
+                    np.zeros((hand.shape[0], 1), dtype=np.float32), # pad finger to 7 dof
+                    hand[:, 0:6],
+                    np.zeros((hand.shape[0], 1), dtype=np.float32), # pad finger to 7 dof 
+                    data["observation.arm_joints"]
+                ], axis=1).astype(np.float32)
+            else:
+                actions = data["action.joint_angles"].astype(np.float32)
+                states = np.concatenate((data["observation.hand_joints"], data["observation.arm_joints"]), axis=1).astype(np.float32)
 
-
-        if self.use_delta_actions:
-            actions = actions[1:] - actions[:-1]
-            action_mask = data["action_mask"][1:]
-        else:
-            action_mask = data["action_mask"]
+            if self.use_delta_actions:
+                actions = actions[1:] - actions[:-1]
+                action_mask = data["action_mask"][1:]
+            else:
+                action_mask = data["action_mask"]
 
         # Expand action_mask to (T, Da) by repeating along last dimension
         if action_mask.ndim == 1:
